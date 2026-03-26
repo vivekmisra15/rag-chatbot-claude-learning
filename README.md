@@ -1,3 +1,6 @@
+# OBJECTIVE
+This project serves as a training codebase for learning Claude Code fundamentals, including understanding an existing codebase, modifying functionality, adding features, and experimenting with testing and development workflows.
+
 # Course Materials RAG System
 
 A Retrieval-Augmented Generation (RAG) system designed to answer questions about course materials using semantic search and AI-powered responses.
