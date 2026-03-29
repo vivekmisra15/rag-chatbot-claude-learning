@@ -1,3 +1,30 @@
+## 🙏 Acknowledgements
+
+This project is based on the original codebase created by
+[DeepLearning.AI](https://www.deeplearning.ai/) as part of their RAG chatbot
+learning curriculum.
+
+- **Original Repository:** [starting-ragchatbot-codebase](https://github.com/https-deeplearning-ai/starting-ragchatbot-codebase)
+- **Original Author:** [DeepLearning.AI](https://github.com/https-deeplearning-ai)
+- **Stars:** 307 | **Forks:** 1.8k
+
+The original codebase provides a full-stack Retrieval-Augmented Generation (RAG)
+system using ChromaDB for vector storage, Anthropic's Claude for AI-powered
+responses, and a Python/FastAPI backend. It served as the foundation and
+learning framework for this project.
+
+### What I Built On Top
+
+This fork has been detached from the original repository and extended as an
+independent learning project.
+
+All credit for the original architecture, system design, and course materials
+goes to the DeepLearning.AI team. If you're learning about RAG systems, I
+highly recommend checking out their original repository and courses at
+[deeplearning.ai](https://www.deeplearning.ai/).
+
+---
+
 # OBJECTIVE
 This project serves as a training codebase for learning Claude Code fundamentals, including understanding an existing codebase, modifying functionality, adding features, and experimenting with testing and development workflows.
 
