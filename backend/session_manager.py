@@ -14,6 +14,7 @@ class SessionManager:
         self.max_history = max_history
         self.sessions: Dict[str, List[Message]] = {}
         self.session_counter = 0
+        self._cancelled: set = set()
     
     def create_session(self) -> str:
         """Create a new conversation session"""
@@ -64,3 +65,15 @@ class SessionManager:
         """Remove a session entirely, freeing its memory"""
         if session_id in self.sessions:
             del self.sessions[session_id]
+
+    def cancel(self, session_id: str):
+        """Mark a session's current generation as cancelled"""
+        self._cancelled.add(session_id)
+
+    def is_cancelled(self, session_id: str) -> bool:
+        """Check if a session's generation was cancelled"""
+        return session_id in self._cancelled
+
+    def clear_cancel(self, session_id: str):
+        """Clear the cancellation flag for a session"""
+        self._cancelled.discard(session_id)

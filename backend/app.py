@@ -90,6 +90,11 @@ async def delete_session(session_id: str):
     """Delete a session and free its conversation history from memory"""
     rag_system.session_manager.delete_session(session_id)
 
+@app.post("/api/cancel/{session_id}", status_code=204)
+async def cancel_generation(session_id: str):
+    """Signal that the client has cancelled the current generation for a session"""
+    rag_system.session_manager.cancel(session_id)
+
 @app.on_event("startup")
 async def startup_event():
     """Load initial documents on startup"""
