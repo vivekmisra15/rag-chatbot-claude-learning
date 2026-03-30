@@ -771,3 +771,64 @@ details[open] .suggested-header::before {
         width: 280px;
     }
 }
+
+/* Pause/Stop Button */
+#pauseButton {
+    padding: 0.75rem 1.25rem;
+    background: var(--surface-hover);
+    color: var(--text-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    min-width: 52px;
+    flex-shrink: 0;
+}
+
+#pauseButton:hover {
+    background: #7f1d1d;
+    color: #fca5a5;
+    border-color: #dc2626;
+}
+
+#pauseButton:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.2);
+}
+
+/* Interrupt options shown after stopping generation */
+.interrupt-options {
+    display: flex;
+    gap: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    background: var(--surface);
+    border-top: 1px solid var(--border-color);
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.interrupt-options span {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-right: 0.25rem;
+}
+
+.interrupt-option-btn {
+    padding: 0.4rem 0.9rem;
+    border-radius: var(--radius);
+    border: 1px solid var(--border-color);
+    background: var(--surface-hover);
+    color: var(--text-primary);
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.interrupt-option-btn:hover {
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+    color: white;
+}
