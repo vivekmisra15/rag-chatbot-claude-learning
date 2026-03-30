@@ -110,9 +110,13 @@ class RAGSystem:
         Returns:
             Tuple of (response, sources list - empty for tool-based approach)
         """
+        # Clear any stale cancel flag from a previous aborted request
+        if session_id:
+            self.session_manager.clear_cancel(session_id)
+
         # Create prompt for the AI with clear instructions
         prompt = f"""Answer this question about course materials: {query}"""
-        
+
         # Get conversation history if session exists
         history = None
         if session_id:
@@ -132,6 +136,11 @@ class RAGSystem:
         # Reset sources after retrieving them
         self.tool_manager.reset_sources()
         
+        # If the client cancelled while we were generating, discard the result
+        if session_id and self.session_manager.is_cancelled(session_id):
+            self.session_manager.clear_cancel(session_id)
+            return "Generation was interrupted.", []
+
         # Update conversation history
         if session_id:
             self.session_manager.add_exchange(session_id, query, response)
