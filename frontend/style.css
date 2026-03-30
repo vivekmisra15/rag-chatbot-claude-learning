@@ -667,28 +667,26 @@ details[open] .suggested-header::before {
 .new-chat-button {
     display: block;
     width: 100%;
-    padding: 0.6rem 1rem;
-    background: transparent;
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
+    padding: 0.5rem 0;
+    background: none;
+    border: none;
     color: var(--text-secondary);
     font-size: 0.875rem;
     font-weight: 600;
     letter-spacing: 0.5px;
     text-transform: uppercase;
     cursor: pointer;
-    text-align: center;
-    transition: all 0.2s ease;
+    text-align: left;
+    outline: none;
+    transition: color 0.2s ease;
 }
 
 .new-chat-button:hover {
-    background: var(--surface-hover);
-    border-color: var(--primary-color);
     color: var(--primary-color);
 }
 
-.new-chat-button:active {
-    transform: scale(0.98);
+.new-chat-button:focus {
+    color: var(--primary-color);
 }
 
 /* Responsive Design */
