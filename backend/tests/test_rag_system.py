@@ -56,6 +56,9 @@ def rag():
         # Default session history: no history
         system._mock_sm.get_conversation_history.return_value = None
 
+        # Default: session is not cancelled
+        system._mock_sm.is_cancelled.return_value = False
+
         # Replace tool_manager with a controllable mock
         system.tool_manager = MagicMock()
         system.tool_manager.get_tool_definitions.return_value = [{"name": "search_course_content"}]
