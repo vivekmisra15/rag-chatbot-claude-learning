@@ -211,7 +211,13 @@ class TestHandleToolExecution:
             course_name="Python Basics",
         )
 
-    def test_tool_execution_second_call_has_no_tools_param(self):
+    def test_tool_execution_second_call_still_has_tools_param(self):
+        """
+        After round-1 tool execution the next API call keeps tools active so
+        Claude can chain a second search if needed. This is the updated contract
+        — the old assertion ("tools" not in second call) reflected the single-round
+        design which has been replaced by the iterative multi-round loop.
+        """
         first = _make_tool_use()
         second = _make_end_turn("Final answer")
         gen, tm = self._setup(first, second)
@@ -219,7 +225,7 @@ class TestHandleToolExecution:
         gen.generate_response(query="test", tools=[{"name": "search"}], tool_manager=tm)
 
         second_call_kwargs = gen.client.messages.create.call_args_list[1][1]
-        assert "tools" not in second_call_kwargs
+        assert "tools" in second_call_kwargs
 
     def test_tool_execution_returns_final_response_text(self):
         first = _make_tool_use()
@@ -329,3 +335,201 @@ class TestHandleToolExecution:
 
         result = gen.generate_response(query="test", tools=[{"name": "search"}], tool_manager=tm)
         assert result == ""
+
+
+# ---------------------------------------------------------------------------
+# Sequential tool calling (up to MAX_TOOL_ROUNDS = 2 rounds)
+# ---------------------------------------------------------------------------
+
+class TestSequentialToolCalling:
+    """
+    Tests for the iterative multi-round tool-calling loop in generate_response.
+
+    Each round keeps tools active so Claude can chain a second search. After
+    MAX_TOOL_ROUNDS rounds the loop exits and a final no-tools call forces a
+    text answer. All tests assert external behaviour: API call count, tool
+    execution count, and the returned text.
+    """
+
+    def _setup(self, responses, tool_result="Search results"):
+        """Factory for multi-round scenarios. `responses` is the full side_effect list."""
+        gen = _make_generator()
+        gen.client.messages.create.side_effect = responses
+        tool_manager = MagicMock()
+        tool_manager.execute_tool.return_value = tool_result
+        return gen, tool_manager
+
+    # ------------------------------------------------------------------
+    # Happy path: two tool rounds followed by a forced-text final call
+    # ------------------------------------------------------------------
+
+    def test_two_tool_rounds_returns_final_text(self):
+        """Three API calls total: round-1 tool_use → round-2 tool_use → final end_turn."""
+        r1 = _make_tool_use(query="first search", tool_id="toolu_01")
+        r2 = _make_tool_use(query="second search", tool_id="toolu_02")
+        final = _make_end_turn("Complete answer from both searches")
+        gen, tm = self._setup([r1, r2, final])
+
+        result = gen.generate_response(
+            query="complex question",
+            tools=[{"name": "search_course_content"}],
+            tool_manager=tm,
+        )
+
+        assert result == "Complete answer from both searches"
+
+    def test_two_tool_rounds_makes_three_api_calls(self):
+        r1 = _make_tool_use(tool_id="toolu_01")
+        r2 = _make_tool_use(tool_id="toolu_02")
+        final = _make_end_turn("answer")
+        gen, tm = self._setup([r1, r2, final])
+
+        gen.generate_response(query="q", tools=[{"name": "search"}], tool_manager=tm)
+
+        assert gen.client.messages.create.call_count == 3
+
+    def test_two_tool_rounds_executes_both_tools(self):
+        r1 = _make_tool_use(query="search A", tool_id="toolu_01")
+        r2 = _make_tool_use(query="search B", tool_id="toolu_02")
+        final = _make_end_turn("answer")
+        gen, tm = self._setup([r1, r2, final])
+
+        gen.generate_response(query="q", tools=[{"name": "search"}], tool_manager=tm)
+
+        assert tm.execute_tool.call_count == 2
+
+    # ------------------------------------------------------------------
+    # Tools must remain active on the second API call
+    # ------------------------------------------------------------------
+
+    def test_second_api_call_has_tools(self):
+        """
+        The second API call (after round-1 tool execution) must include tools
+        so Claude can decide to search again or answer directly.
+        """
+        r1 = _make_tool_use(tool_id="toolu_01")
+        r2 = _make_tool_use(tool_id="toolu_02")
+        final = _make_end_turn("answer")
+        gen, tm = self._setup([r1, r2, final])
+
+        gen.generate_response(query="q", tools=[{"name": "search"}], tool_manager=tm)
+
+        second_call_kwargs = gen.client.messages.create.call_args_list[1][1]
+        assert "tools" in second_call_kwargs
+
+    def test_third_api_call_has_no_tools(self):
+        """
+        The final forced-text call (after both rounds are exhausted) must strip
+        tools so Claude cannot start another round.
+        """
+        r1 = _make_tool_use(tool_id="toolu_01")
+        r2 = _make_tool_use(tool_id="toolu_02")
+        final = _make_end_turn("answer")
+        gen, tm = self._setup([r1, r2, final])
+
+        gen.generate_response(query="q", tools=[{"name": "search"}], tool_manager=tm)
+
+        third_call_kwargs = gen.client.messages.create.call_args_list[2][1]
+        assert "tools" not in third_call_kwargs
+
+    # ------------------------------------------------------------------
+    # Message history accumulates across rounds
+    # ------------------------------------------------------------------
+
+    def test_two_tool_rounds_message_history_has_five_messages(self):
+        """
+        After two tool rounds the final call must receive the full 5-message
+        history: original user → assistant R1 → user tool_result R1 →
+        assistant R2 → user tool_result R2.
+        """
+        r1 = _make_tool_use(query="search A", tool_id="toolu_01")
+        r2 = _make_tool_use(query="search B", tool_id="toolu_02")
+        final = _make_end_turn("answer")
+        gen, tm = self._setup([r1, r2, final])
+
+        gen.generate_response(query="original question", tools=[{"name": "search"}], tool_manager=tm)
+
+        final_call_messages = gen.client.messages.create.call_args_list[2][1]["messages"]
+        assert len(final_call_messages) == 5
+        assert final_call_messages[0]["role"] == "user"       # original query
+        assert final_call_messages[1]["role"] == "assistant"  # R1 tool_use
+        assert final_call_messages[2]["role"] == "user"       # R1 tool_result
+        assert final_call_messages[3]["role"] == "assistant"  # R2 tool_use
+        assert final_call_messages[4]["role"] == "user"       # R2 tool_result
+
+    def test_tool_result_ids_are_correct_in_each_round(self):
+        """Each tool_result references the tool_use_id from its own round."""
+        r1 = _make_tool_use(query="A", tool_id="toolu_01")
+        r2 = _make_tool_use(query="B", tool_id="toolu_02")
+        final = _make_end_turn("answer")
+        gen, tm = self._setup([r1, r2, final])
+
+        gen.generate_response(query="q", tools=[{"name": "search"}], tool_manager=tm)
+
+        msgs = gen.client.messages.create.call_args_list[2][1]["messages"]
+        assert msgs[2]["content"][0]["tool_use_id"] == "toolu_01"
+        assert msgs[4]["content"][0]["tool_use_id"] == "toolu_02"
+
+    # ------------------------------------------------------------------
+    # Early exit: Claude answers after round 1 (no third call)
+    # ------------------------------------------------------------------
+
+    def test_round2_direct_answer_makes_two_calls_not_three(self):
+        """
+        If Claude answers directly after round-1 tool execution (stop_reason
+        end_turn on the second call), the loop exits early and no forced-text
+        third call is made.
+        """
+        r1 = _make_tool_use(tool_id="toolu_01")
+        answer = _make_end_turn("Done after one search")
+        gen, tm = self._setup([r1, answer])
+
+        result = gen.generate_response(
+            query="q", tools=[{"name": "search"}], tool_manager=tm
+        )
+
+        assert gen.client.messages.create.call_count == 2
+        assert tm.execute_tool.call_count == 1
+        assert result == "Done after one search"
+
+    # ------------------------------------------------------------------
+    # Bound: never exceed MAX_TOOL_ROUNDS
+    # ------------------------------------------------------------------
+
+    def test_max_two_tool_rounds_enforced(self):
+        """
+        Only 3 API calls are ever made regardless of Claude's preference for
+        more tool calls. If a 4th call were made, side_effect would raise
+        StopIteration, causing the test to fail with an error — a clear signal.
+        """
+        r1 = _make_tool_use(tool_id="toolu_01")
+        r2 = _make_tool_use(tool_id="toolu_02")
+        final = _make_end_turn("Forced answer")
+        gen, tm = self._setup([r1, r2, final])
+
+        gen.generate_response(query="q", tools=[{"name": "search"}], tool_manager=tm)
+
+        assert gen.client.messages.create.call_count == 3
+
+    # ------------------------------------------------------------------
+    # Resilience: tool error string does not stop the loop
+    # ------------------------------------------------------------------
+
+    def test_tool_error_string_is_fed_back_as_tool_result(self):
+        """
+        execute_tool returning an error string (not raising) is treated as a
+        valid tool_result. Claude receives the error message and can respond
+        accordingly — the loop continues normally.
+        """
+        r1 = _make_tool_use(tool_id="toolu_01")
+        answer = _make_end_turn("Fallback answer")
+        gen, tm = self._setup([r1, answer], tool_result="Tool 'x' not found")
+
+        result = gen.generate_response(
+            query="q", tools=[{"name": "search"}], tool_manager=tm
+        )
+
+        second_call_messages = gen.client.messages.create.call_args_list[1][1]["messages"]
+        tool_result_content = second_call_messages[2]["content"][0]["content"]
+        assert tool_result_content == "Tool 'x' not found"
+        assert result == "Fallback answer"
