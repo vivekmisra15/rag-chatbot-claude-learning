@@ -55,6 +55,9 @@ function setGeneratingState(isGenerating) {
     sendButton.disabled = isGenerating;
     sendButton.style.display = isGenerating ? 'none' : '';
     pauseButton.style.display = isGenerating ? '' : 'none';
+    document.querySelectorAll('.suggested-item').forEach(btn => {
+        btn.disabled = isGenerating;
+    });
 }
 
 // Chat Functions

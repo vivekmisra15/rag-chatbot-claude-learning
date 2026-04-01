@@ -422,6 +422,11 @@ header h1 {
     cursor: not-allowed;
 }
 
+.suggested-item:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
 /* Loading Animation */
 .loading {
     display: inline-flex;
