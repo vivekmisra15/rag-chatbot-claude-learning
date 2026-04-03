@@ -5,8 +5,9 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import pytest
+import importlib
 import anthropic
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 from vector_store import SearchResults
 
 
@@ -112,3 +113,57 @@ def error_search_results():
         distances=[],
         error="Search error: collection not found",
     )
+
+
+# ---------------------------------------------------------------------------
+# API test fixtures — import app.py once per session with mocked dependencies
+# ---------------------------------------------------------------------------
+
+@pytest.fixture(scope="session")
+def _patched_app():
+    """
+    Import app.py with RAGSystem and StaticFiles.__init__ patched out so
+    tests run without ChromaDB, the Anthropic API, or the frontend directory.
+    """
+    from fastapi.staticfiles import StaticFiles
+
+    # Clear cached module so a fresh import happens under the patches below.
+    sys.modules.pop("app", None)
+
+    seed_rag = MagicMock()
+    seed_rag.get_course_analytics.return_value = {"total_courses": 0, "course_titles": []}
+
+    with patch("rag_system.RAGSystem", return_value=seed_rag), \
+         patch.object(StaticFiles, "__init__", return_value=None):
+        app_module = importlib.import_module("app")
+
+    return app_module
+
+
+@pytest.fixture
+def api_mock_rag(_patched_app):
+    """
+    Swap a fresh MagicMock into app.rag_system for the duration of one test,
+    then restore the original so tests don't bleed into each other.
+    """
+    mock = MagicMock()
+    mock.session_manager.create_session.return_value = "test-session-id"
+    mock.query.return_value = ("Test answer", [])
+    mock.get_course_analytics.return_value = {
+        "total_courses": 2,
+        "course_titles": ["Python Basics", "Machine Learning"],
+    }
+
+    original = _patched_app.rag_system
+    _patched_app.rag_system = mock
+    yield mock
+    _patched_app.rag_system = original
+
+
+@pytest.fixture
+def api_client(_patched_app, api_mock_rag):
+    """TestClient for the FastAPI app, backed by a per-test mock RAGSystem."""
+    from fastapi.testclient import TestClient
+
+    with TestClient(_patched_app.app) as client:
+        yield client
