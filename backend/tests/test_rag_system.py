@@ -12,13 +12,14 @@ Covers:
 - Exception propagation (the source of "Error: Query failed" in the UI)
 - Regression tests for specific crash paths
 """
+
 import pytest
 from unittest.mock import MagicMock, patch, call
-
 
 # ---------------------------------------------------------------------------
 # Fixture: a RAGSystem with all sub-components mocked
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture
 def rag():
@@ -27,10 +28,12 @@ def rag():
     and DocumentProcessor all replaced by MagicMocks.
     Exposes mock instances on the system object for assertion convenience.
     """
-    with patch("rag_system.VectorStore") as MockVS, \
-         patch("rag_system.AIGenerator") as MockAI, \
-         patch("rag_system.DocumentProcessor") as MockDP, \
-         patch("rag_system.SessionManager") as MockSM:
+    with (
+        patch("rag_system.VectorStore") as MockVS,
+        patch("rag_system.AIGenerator") as MockAI,
+        patch("rag_system.DocumentProcessor") as MockDP,
+        patch("rag_system.SessionManager") as MockSM,
+    ):
 
         config = MagicMock()
         config.ANTHROPIC_API_KEY = "fake_key"
@@ -43,6 +46,7 @@ def rag():
         config.CHUNK_OVERLAP = 100
 
         from rag_system import RAGSystem
+
         system = RAGSystem(config)
 
         # Wire mock instances for easy access in tests
@@ -71,13 +75,17 @@ def rag():
 # Prompt construction
 # ---------------------------------------------------------------------------
 
+
 class TestRAGSystemQueryPrompt:
 
     def test_query_wraps_user_input_in_prompt(self, rag):
         rag.query("what is a variable?")
 
         call_kwargs = rag._mock_ai.generate_response.call_args[1]
-        assert call_kwargs["query"] == "Answer this question about course materials: what is a variable?"
+        assert (
+            call_kwargs["query"]
+            == "Answer this question about course materials: what is a variable?"
+        )
 
     def test_query_passes_tool_definitions_to_generator(self, rag):
         rag.query("test question")
@@ -90,6 +98,7 @@ class TestRAGSystemQueryPrompt:
 # ---------------------------------------------------------------------------
 # Session handling
 # ---------------------------------------------------------------------------
+
 
 class TestRAGSystemQuerySession:
 
@@ -135,6 +144,7 @@ class TestRAGSystemQuerySession:
 # Return contract
 # ---------------------------------------------------------------------------
 
+
 class TestRAGSystemQueryReturnContract:
 
     def test_query_returns_response_and_sources_tuple(self, rag):
@@ -169,6 +179,7 @@ class TestRAGSystemQueryReturnContract:
 # ---------------------------------------------------------------------------
 # Exception propagation
 # ---------------------------------------------------------------------------
+
 
 class TestRAGSystemQueryExceptionPropagation:
 

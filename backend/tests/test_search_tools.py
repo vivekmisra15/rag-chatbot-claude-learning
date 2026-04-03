@@ -9,15 +9,16 @@ Covers:
 - last_sources tracking (plain text and HTML links)
 - ToolManager registration, dispatch, and source management
 """
+
 import pytest
 from unittest.mock import MagicMock, call
 from search_tools import CourseSearchTool, ToolManager
 from vector_store import SearchResults
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_tool(mock_vs):
     return CourseSearchTool(vector_store=mock_vs)
@@ -26,6 +27,7 @@ def _make_tool(mock_vs):
 # ---------------------------------------------------------------------------
 # CourseSearchTool.execute()
 # ---------------------------------------------------------------------------
+
 
 class TestCourseSearchToolExecute:
 
@@ -72,7 +74,9 @@ class TestCourseSearchToolExecute:
         )
         assert "Lesson 3" in result
 
-    def test_execute_empty_results_returns_no_content_message(self, mock_vector_store, empty_search_results):
+    def test_execute_empty_results_returns_no_content_message(
+        self, mock_vector_store, empty_search_results
+    ):
         mock_vector_store.search.return_value = empty_search_results
         tool = _make_tool(mock_vector_store)
         result = tool.execute(query="nonexistent topic")
@@ -97,7 +101,9 @@ class TestCourseSearchToolExecute:
 
         assert result == "No relevant content found in lesson 2."
 
-    def test_execute_search_error_returns_error_string(self, mock_vector_store, error_search_results):
+    def test_execute_search_error_returns_error_string(
+        self, mock_vector_store, error_search_results
+    ):
         mock_vector_store.search.return_value = error_search_results
         tool = _make_tool(mock_vector_store)
         result = tool.execute(query="anything")
@@ -122,7 +128,9 @@ class TestCourseSearchToolExecute:
         assert "Python Basics - Lesson 1" in src
         assert "<a " in src
 
-    def test_execute_multiple_results_sets_multiple_sources(self, mock_vector_store, sample_search_results):
+    def test_execute_multiple_results_sets_multiple_sources(
+        self, mock_vector_store, sample_search_results
+    ):
         mock_vector_store.search.return_value = sample_search_results
         mock_vector_store.get_lesson_link.return_value = None
         tool = _make_tool(mock_vector_store)
@@ -169,6 +177,7 @@ class TestCourseSearchToolExecute:
 # ---------------------------------------------------------------------------
 # ToolManager
 # ---------------------------------------------------------------------------
+
 
 class TestToolManager:
 

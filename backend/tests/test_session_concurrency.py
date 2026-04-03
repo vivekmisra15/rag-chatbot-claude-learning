@@ -13,13 +13,14 @@ Covers:
 - A second query after a cancel proceeds correctly with a clean cancel flag
 - Cancel state correctly prevents history updates when generation is interrupted
 """
+
 import pytest
 from unittest.mock import MagicMock, patch, call
-
 
 # ---------------------------------------------------------------------------
 # Fixture: RAGSystem with all sub-components mocked (same pattern as test_rag_system.py)
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture
 def rag():
@@ -27,10 +28,12 @@ def rag():
     Build a RAGSystem with all sub-components replaced by MagicMocks.
     Follows the same fixture pattern as test_rag_system.py.
     """
-    with patch("rag_system.VectorStore") as MockVS, \
-         patch("rag_system.AIGenerator") as MockAI, \
-         patch("rag_system.DocumentProcessor") as MockDP, \
-         patch("rag_system.SessionManager") as MockSM:
+    with (
+        patch("rag_system.VectorStore") as MockVS,
+        patch("rag_system.AIGenerator") as MockAI,
+        patch("rag_system.DocumentProcessor") as MockDP,
+        patch("rag_system.SessionManager") as MockSM,
+    ):
 
         config = MagicMock()
         config.ANTHROPIC_API_KEY = "fake_key"
@@ -43,6 +46,7 @@ def rag():
         config.CHUNK_OVERLAP = 100
 
         from rag_system import RAGSystem
+
         system = RAGSystem(config)
 
         system._mock_ai = MockAI.return_value
@@ -64,6 +68,7 @@ def rag():
 # Cancel flag lifecycle
 # ---------------------------------------------------------------------------
 
+
 class TestCancelFlagLifecycle:
 
     def test_cancel_flag_is_cleared_at_the_start_of_every_query(self, rag):
@@ -84,7 +89,9 @@ class TestCancelFlagLifecycle:
         """
         call_order = []
         rag._mock_sm.clear_cancel.side_effect = lambda sid: call_order.append("clear_cancel")
-        rag._mock_ai.generate_response.side_effect = lambda **kw: call_order.append("generate") or "answer"
+        rag._mock_ai.generate_response.side_effect = (
+            lambda **kw: call_order.append("generate") or "answer"
+        )
 
         rag.query("test question", session_id="session_1")
 
@@ -103,6 +110,7 @@ class TestCancelFlagLifecycle:
 # ---------------------------------------------------------------------------
 # Cancelled query behaviour
 # ---------------------------------------------------------------------------
+
 
 class TestCancelledQueryBehaviour:
 
@@ -150,6 +158,7 @@ class TestCancelledQueryBehaviour:
 # Second request after cancellation
 # ---------------------------------------------------------------------------
 
+
 class TestSecondRequestAfterCancellation:
 
     def test_second_query_clears_stale_cancel_flag_from_first(self, rag):
@@ -184,4 +193,6 @@ class TestSecondRequestAfterCancellation:
         rag._mock_ai.generate_response.return_value = "Second answer"
         rag.query("second question", session_id="session_1")
 
-        rag._mock_sm.add_exchange.assert_called_once_with("session_1", "second question", "Second answer")
+        rag._mock_sm.add_exchange.assert_called_once_with(
+            "session_1", "second question", "Second answer"
+        )
