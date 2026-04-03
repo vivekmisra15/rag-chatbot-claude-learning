@@ -7,15 +7,16 @@ Covers:
 - Conversation history handling
 - Verified crash paths that produce "Query failed" (marked BUG)
 """
+
 import pytest
 import anthropic
 from unittest.mock import MagicMock, patch, call
 from ai_generator import AIGenerator
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_generator(api_key="fake_key", model="claude-sonnet-4-20250514"):
     with patch("ai_generator.anthropic.Anthropic"):
@@ -80,6 +81,7 @@ def _make_empty_content(stop_reason="end_turn"):
 # Initialisation
 # ---------------------------------------------------------------------------
 
+
 class TestAIGeneratorInit:
 
     def test_init_sets_model(self):
@@ -98,6 +100,7 @@ class TestAIGeneratorInit:
 # ---------------------------------------------------------------------------
 # Direct (end_turn) response path
 # ---------------------------------------------------------------------------
+
 
 class TestGenerateResponseDirectPath:
 
@@ -162,7 +165,9 @@ class TestGenerateResponseDirectPath:
         gen = _make_generator()
         gen.client.messages.create.return_value = _make_tool_use()
 
-        result = gen.generate_response(query="course question", tools=[{"name": "search"}], tool_manager=None)
+        result = gen.generate_response(
+            query="course question", tools=[{"name": "search"}], tool_manager=None
+        )
         assert result == ""
 
     def test_empty_content_list_returns_empty_string(self):
@@ -182,6 +187,7 @@ class TestGenerateResponseDirectPath:
 # Tool execution (two-call pattern)
 # ---------------------------------------------------------------------------
 
+
 class TestHandleToolExecution:
 
     def _setup(self, first_response, second_response, tool_result="Search results text"):
@@ -195,7 +201,9 @@ class TestHandleToolExecution:
         return gen, tool_manager
 
     def test_tool_execution_calls_tool_manager_with_correct_args(self):
-        first = _make_tool_use(query="python loops", course_name="Python Basics", tool_id="toolu_01")
+        first = _make_tool_use(
+            query="python loops", course_name="Python Basics", tool_id="toolu_01"
+        )
         second = _make_end_turn("Here is info")
         gen, tm = self._setup(first, second)
 
@@ -260,11 +268,15 @@ class TestHandleToolExecution:
             id="msg_multi",
             content=[
                 anthropic.types.ToolUseBlock(
-                    type="tool_use", id="toolu_01", name="search_course_content",
+                    type="tool_use",
+                    id="toolu_01",
+                    name="search_course_content",
                     input={"query": "query A"},
                 ),
                 anthropic.types.ToolUseBlock(
-                    type="tool_use", id="toolu_02", name="search_course_content",
+                    type="tool_use",
+                    id="toolu_02",
+                    name="search_course_content",
                     input={"query": "query B"},
                 ),
             ],
@@ -340,6 +352,7 @@ class TestHandleToolExecution:
 # ---------------------------------------------------------------------------
 # Sequential tool calling (up to MAX_TOOL_ROUNDS = 2 rounds)
 # ---------------------------------------------------------------------------
+
 
 class TestSequentialToolCalling:
     """
@@ -447,15 +460,17 @@ class TestSequentialToolCalling:
         final = _make_end_turn("answer")
         gen, tm = self._setup([r1, r2, final])
 
-        gen.generate_response(query="original question", tools=[{"name": "search"}], tool_manager=tm)
+        gen.generate_response(
+            query="original question", tools=[{"name": "search"}], tool_manager=tm
+        )
 
         final_call_messages = gen.client.messages.create.call_args_list[2][1]["messages"]
         assert len(final_call_messages) == 5
-        assert final_call_messages[0]["role"] == "user"       # original query
+        assert final_call_messages[0]["role"] == "user"  # original query
         assert final_call_messages[1]["role"] == "assistant"  # R1 tool_use
-        assert final_call_messages[2]["role"] == "user"       # R1 tool_result
+        assert final_call_messages[2]["role"] == "user"  # R1 tool_result
         assert final_call_messages[3]["role"] == "assistant"  # R2 tool_use
-        assert final_call_messages[4]["role"] == "user"       # R2 tool_result
+        assert final_call_messages[4]["role"] == "user"  # R2 tool_result
 
     def test_tool_result_ids_are_correct_in_each_round(self):
         """Each tool_result references the tool_use_id from its own round."""
@@ -484,9 +499,7 @@ class TestSequentialToolCalling:
         answer = _make_end_turn("Done after one search")
         gen, tm = self._setup([r1, answer])
 
-        result = gen.generate_response(
-            query="q", tools=[{"name": "search"}], tool_manager=tm
-        )
+        result = gen.generate_response(query="q", tools=[{"name": "search"}], tool_manager=tm)
 
         assert gen.client.messages.create.call_count == 2
         assert tm.execute_tool.call_count == 1
@@ -525,9 +538,7 @@ class TestSequentialToolCalling:
         answer = _make_end_turn("Fallback answer")
         gen, tm = self._setup([r1, answer], tool_result="Tool 'x' not found")
 
-        result = gen.generate_response(
-            query="q", tools=[{"name": "search"}], tool_manager=tm
-        )
+        result = gen.generate_response(query="q", tools=[{"name": "search"}], tool_manager=tm)
 
         second_call_messages = gen.client.messages.create.call_args_list[1][1]["messages"]
         tool_result_content = second_call_messages[2]["content"][0]["content"]

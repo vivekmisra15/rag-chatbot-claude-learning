@@ -18,6 +18,7 @@ def _make_usage():
 @pytest.fixture
 def make_end_turn_response():
     """Factory: build an Anthropic Message with a TextBlock and stop_reason='end_turn'."""
+
     def _factory(text="Test response"):
         return anthropic.types.Message(
             id="msg_end_turn",
@@ -29,12 +30,14 @@ def make_end_turn_response():
             type="message",
             usage=_make_usage(),
         )
+
     return _factory
 
 
 @pytest.fixture
 def make_tool_use_response():
     """Factory: build an Anthropic Message with a ToolUseBlock and stop_reason='tool_use'."""
+
     def _factory(tool_name="search_course_content", tool_id="toolu_01", input_dict=None):
         if input_dict is None:
             input_dict = {"query": "test query"}
@@ -55,12 +58,14 @@ def make_tool_use_response():
             type="message",
             usage=_make_usage(),
         )
+
     return _factory
 
 
 @pytest.fixture
 def make_empty_content_response():
     """Factory: build an Anthropic Message with an empty content list (edge-case crash trigger)."""
+
     def _factory(stop_reason="end_turn"):
         return anthropic.types.Message(
             id="msg_empty",
@@ -72,6 +77,7 @@ def make_empty_content_response():
             type="message",
             usage=_make_usage(),
         )
+
     return _factory
 
 

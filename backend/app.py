@@ -1,4 +1,5 @@
 import warnings
+
 warnings.filterwarnings("ignore", message="resource_tracker: There appear to be.*")
 
 from fastapi import FastAPI, HTTPException
@@ -16,10 +17,7 @@ from rag_system import RAGSystem
 app = FastAPI(title="Course Materials RAG System", root_path="")
 
 # Add trusted host middleware for proxy
-app.add_middleware(
-    TrustedHostMiddleware,
-    allowed_hosts=["*"]
-)
+app.add_middleware(TrustedHostMiddleware, allowed_hosts=["*"])
 
 # Enable CORS with proper settings for proxy
 app.add_middleware(
@@ -34,24 +32,32 @@ app.add_middleware(
 # Initialize RAG system
 rag_system = RAGSystem(config)
 
+
 # Pydantic models for request/response
 class QueryRequest(BaseModel):
     """Request model for course queries"""
+
     query: str
     session_id: Optional[str] = None
 
+
 class QueryResponse(BaseModel):
     """Response model for course queries"""
+
     answer: str
     sources: List[str]
     session_id: str
 
+
 class CourseStats(BaseModel):
     """Response model for course statistics"""
+
     total_courses: int
     course_titles: List[str]
 
+
 # API Endpoints
+
 
 @app.post("/api/query", response_model=QueryResponse)
 async def query_documents(request: QueryRequest):
@@ -61,17 +67,14 @@ async def query_documents(request: QueryRequest):
         session_id = request.session_id
         if not session_id:
             session_id = rag_system.session_manager.create_session()
-        
+
         # Process query using RAG system
         answer, sources = rag_system.query(request.query, session_id)
-        
-        return QueryResponse(
-            answer=answer,
-            sources=sources,
-            session_id=session_id
-        )
+
+        return QueryResponse(answer=answer, sources=sources, session_id=session_id)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.get("/api/courses", response_model=CourseStats)
 async def get_course_stats():
@@ -79,21 +82,23 @@ async def get_course_stats():
     try:
         analytics = rag_system.get_course_analytics()
         return CourseStats(
-            total_courses=analytics["total_courses"],
-            course_titles=analytics["course_titles"]
+            total_courses=analytics["total_courses"], course_titles=analytics["course_titles"]
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.delete("/api/session/{session_id}", status_code=204)
 async def delete_session(session_id: str):
     """Delete a session and free its conversation history from memory"""
     rag_system.session_manager.delete_session(session_id)
 
+
 @app.post("/api/cancel/{session_id}", status_code=204)
 async def cancel_generation(session_id: str):
     """Signal that the client has cancelled the current generation for a session"""
     rag_system.session_manager.cancel(session_id)
+
 
 @app.on_event("startup")
 async def startup_event():
@@ -106,6 +111,7 @@ async def startup_event():
             print(f"Loaded {courses} courses with {chunks} chunks")
         except Exception as e:
             print(f"Error loading documents: {e}")
+
 
 # Custom static file handler with no-cache headers for development
 from fastapi.staticfiles import StaticFiles
@@ -123,7 +129,7 @@ class DevStaticFiles(StaticFiles):
             response.headers["Pragma"] = "no-cache"
             response.headers["Expires"] = "0"
         return response
-    
-    
+
+
 # Serve static files for the frontend
 app.mount("/", DevStaticFiles(directory="../frontend", html=True), name="static")
